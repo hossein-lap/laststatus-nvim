@@ -1,13 +1,6 @@
 LS = {}
 
 function LS.Active()
-	vim.cmd [[
-		hi User1 ctermfg=208 ctermbg=234 guifg=#000000 guibg=#cccccc cterm=NONE gui=NONE
-		hi User2 ctermfg=208 ctermbg=234 guifg=#cccccc guibg=#282a2e cterm=NONE gui=NONE
-		hi! link StatusLine User1
-		hi! link StatusLineNC User2
-	]]
-
 	local filename = "%f"
 	local mod = "%m %r%h%w"
 	local sep = " "
@@ -102,9 +95,42 @@ end
 
 LS.Inactive = LS.Active
 
-function LS.Load(mode)
+function LS.Load(mode, colors)
 	vim.opt.laststatus = 2
 	vim.opt.showtabline = 2
+
+	if colors == nil then
+		colors = {}
+	end
+
+	if colors.fg_active == nil then
+		colors.fg_active = "#bcbcbc"
+	end
+
+	if colors.bg_active == nil then
+		colors.bg_active = "#282a2e"
+	end
+
+	if colors.fg_inactive == nil then
+		colors.fg_inactive = "#777777"
+	end
+
+	if colors.bg_inactive == nil then
+		colors.bg_inactive = "#000000"
+	end
+
+	vim.cmd(string.format("hi User1 ctermfg=black ctermbg=white guifg=%s guibg=%s cterm=NONE gui=NONE",
+		colors.fg_active, colors.bg_active)
+	)
+	vim.cmd(string.format("hi User2 ctermfg=white ctermbg=black guifg=%s guibg=%s cterm=NONE gui=NONE",
+		colors.fg_inactive, colors.bg_inactive)
+	)
+
+	vim.cmd [[
+		hi! link StatusLine User1
+		hi! link StatusLineNC User2
+	]]
+
 
 	if mode == "active" then
 		vim.opt_local.statusline = LS.Active()
@@ -115,14 +141,14 @@ function LS.Load(mode)
 	end
 end
 
-function LS.setup()
+function LS.setup(config)
 	local LS_augroup = vim.api.nvim_create_augroup("LS_augroup", {})
 	local autocmd = vim.api.nvim_create_autocmd
 	autocmd({"BufEnter", "WinEnter", "BufWinEnter", "BufWrite", "ModeChanged"}, {
 		group = LS_augroup,
 		pattern = "*",
 		callback = function()
-			LS.Load("active")
+			LS.Load("active", config)
 		end
 	})
 
