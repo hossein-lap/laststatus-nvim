@@ -1,18 +1,17 @@
 LS = {}
 
-function LS.Active()
+-- StatusActive {{{
+function LS.StatusActive()
 	local filename = "%f"
 	local mod = "%m %r%h%w"
 	local sep = " "
 	local split = "%="
-	local ft = vim.bo.filetype
-	local git = "TODO"
 	local line = "%c:%l/%L"
 	local position = "%P"
 	local encode = "%{&ff}"
 
 	-- lsp {{{
-	local lsp = "lsp"
+	local lsp = ""
 	local lsp_server = function()
 		local msg = ''
 		local buf_ft = vim.bo.filetype
@@ -24,7 +23,7 @@ function LS.Active()
 			local filetypes = client.config.filetypes
 			if filetypes and vim.fn.index(filetypes, buf_ft) ~= -1 then
 				-- return 'lsp: '..vim.fn.index(filetypes, buf_ft).." "..buf_ft.." "..client.name
-				return client.name
+				return "  "..client.name
 			end
 		end
 		return msg
@@ -37,31 +36,35 @@ function LS.Active()
 	-- }}}
 
 	-- diagnostics {{{
-	local _diag = vim.diagnostic.count(
-		0, vim.diagnostic.get(1, {})
-	)
+
+	local _diag = {
+		#vim.diagnostic.get(0, { severity = vim.diagnostic.severity.ERROR }),
+		#vim.diagnostic.get(0, { severity = vim.diagnostic.severity.WARN }),
+		#vim.diagnostic.get(0, { severity = vim.diagnostic.severity.INFO }),
+		#vim.diagnostic.get(0, { severity = vim.diagnostic.severity.HINT }),
+	}
 
 	local diagnostics = ""
 
-	if _diag[1] ~= nil then
+	if _diag[1] ~= 0 then
 		diagnostics = string.format("%s-%s", diagnostics, _diag[1])
 	else
 		diagnostics = string.format("%s-%s", diagnostics, "-")
 	end
 
-	if _diag[2] ~= nil then
+	if _diag[2] ~= 0 then
 		diagnostics = string.format("%s-%s", diagnostics, _diag[2])
 	else
 		diagnostics = string.format("%s-%s", diagnostics, "-")
 	end
 
-	if _diag[3] ~= nil then
+	if _diag[3] ~= 0 then
 		diagnostics = string.format("%s-%s", diagnostics, _diag[3])
 	else
 		diagnostics = string.format("%s-%s", diagnostics, "-")
 	end
 
-	if _diag[4] ~= nil then
+	if _diag[4] ~= 0 then
 		diagnostics = string.format("%s-%s", diagnostics, _diag[4])
 	else
 		diagnostics = string.format("%s-%s", diagnostics, "-")
@@ -72,32 +75,69 @@ function LS.Active()
 	end
 	-- }}}
 
-	return string.format("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+	return string.format("%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 		filename,
 		string.rep(sep, 1),
 		mod,
-		string.rep(split, 2),
-		lsp,
-		diagnostics,
+		string.rep(sep, 2),
 		split,
 		line,
-		string.rep(sep, 2),
-		encode,
-		string.rep(sep, 2),
-		git,
-		string.rep(sep, 2),
+		string.rep(sep, 1),
 		position,
-		string.rep(sep, 2),
-		ft,
-		""
+		string.rep(sep, 3),
+		encode,
+		string.rep(sep, 3),
+		vim.bo.filetype,
+		lsp,
+		diagnostics
 	)
 end
+-- }}}
 
-LS.Inactive = LS.Active
+-- -- TabActive {{{
+-- function LS.TabActive()
+-- 	local encode = "%{&ff}"
+--
+--
+-- 	-- -- local buffers = #vim.api.nvim_list_bufs()
+-- 	-- local bufs = 0
+-- 	-- for k,v in ipairs(vim.api.nvim_list_bufs()) do
+-- 	-- 	if vim.api.nvim_buf_is_loaded(v) then
+-- 	-- 	-- if vim.api.nvim_buf_line_count(v) ~= 0 then
+-- 	-- 		bufs = bufs + 1
+-- 	-- 	end
+-- 	-- end
+-- 	-- bufs = bufs - 1 -- for the default buffer :/
+--
+-- 	vim.cmd([[
+-- 		hi! link StatusLineNC User2
+-- 		hi! link TabLine User1
+-- 		hi! link TabLinSel User2
+-- 	]])
+--
+-- 	return string.format("%s%s%s%s%s%s%s%s%s",
+-- 		"%b %F",
+-- 		string.rep(" ", 2),
+-- 		lsp,
+-- 		diagnostics,
+-- 		"%=",
+-- 		string.rep(" ", 2),
+-- 		git,
+-- 		string.rep(" ", 4),
+-- 		encode,
+-- 		""
+-- 	)
+-- end
+-- -- }}}
 
+-- StatusInactive {{{
+LS.StatusInactive = LS.StatusActive
+-- }}}
+
+-- Load {{{
 function LS.Load(mode, colors)
 	vim.opt.laststatus = 2
-	vim.opt.showtabline = 2
+	vim.opt.showtabline = 1 -- yeah maybe
 
 	if colors == nil then
 		colors = {}
@@ -128,19 +168,25 @@ function LS.Load(mode, colors)
 
 	vim.cmd [[
 		hi! link StatusLine User1
-		hi! link StatusLineNC User2
+		hi! link TabLinSel User1
+		hi! link TabLineFill User2
+		hi! link TabLine User2
 	]]
 
 
 	if mode == "active" then
-		vim.opt_local.statusline = LS.Active()
-		vim.opt_local.tabline = "%F %= %b"
+		vim.opt_local.statusline = LS.StatusActive()
+		-- vim.opt_local.tabline = LS.TabActive()
 	else
-		vim.opt_local.statusline = LS.Inactive()
-		vim.opt_local.tabline = "%F %= %b"
+		vim.opt_local.statusline = LS.StatusInactive()
+		-- vim.opt_local.tabline = LS.TabActive()
+		-- vim.opt_local.tabline = "%F %= %b"
 	end
-end
 
+end
+-- }}}
+
+-- setup {{{
 function LS.setup(config)
 	local LS_augroup = vim.api.nvim_create_augroup("LS_augroup", {})
 	local autocmd = vim.api.nvim_create_autocmd
@@ -160,5 +206,6 @@ function LS.setup(config)
 		end
 	})
 end
+-- }}}
 
 return LS
